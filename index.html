@@ -50,15 +50,25 @@
     </div>
 
     <script>
-        // --- Безопасная инициализация TG ---
-        const tg = window.Telegram ? window.Telegram.WebApp : {
-            initDataUnsafe: { user: { id: 12345 } }, // Тестовые данные для браузера
-            expand: () => {}, ready: () => {}
-        };
-        tg.ready();
-        tg.expand();
+            // 1. Сначала определяем объект TG
+        const tg = window.Telegram ? window.Telegram.WebApp : null;
         
-        // 🛑 ВАЖНО: Вставь сюда СВОЮ ссылку из Ngrok!
+        // 2. Пробуем достать реальный ID
+        let myId = 12345; // Значение по умолчанию
+        
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            myId = tg.initDataUnsafe.user.id;
+            console.log("ID игрока определен из Telegram:", myId);
+        } else {
+            console.log("Данные Telegram не найдены, используем тестовый ID:", myId);
+        }
+        
+        // Сообщаем Телеграму, что приложение готово
+        if (tg && tg.ready) tg.ready();
+        if (tg && tg.expand) tg.expand();
+        
+        // 🛑 ВАЖНО: Твоя ссылка Ngrok (проверь, что она такая же!)
+        
         const API_URL = "https://salubriously-ophthalmic-eveline.ngrok-free.dev";
         const myId = tg.initDataUnsafe.user.id;
 
@@ -128,3 +138,4 @@
     </script>
 </body>
 </html>
+

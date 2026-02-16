@@ -3,176 +3,419 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Tamagotchi Mini App</title>
+    <title>Tamagotchi Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-dark: #121212;
+            --glass: rgba(255, 255, 255, 0.1);
+            --accent: #6c5ce7;
+            --danger: #ff7675;
+            --success: #00cec9;
+        }
+
         body {
-            background-color: var(--tg-theme-bg-color, #212121);
-            color: var(--tg-theme-text-color, #ffffff);
-            font-family: sans-serif;
+            font-family: 'Nunito', sans-serif;
+            background: linear-gradient(135deg, #2d3436, #000000);
+            color: white;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- ВЕРХНЯЯ ПАНЕЛЬ (Уровень и День) --- */
+        .top-bar {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+        }
+        .level-box { font-weight: bold; color: var(--success); }
+
+        /* --- ОСНОВНОЙ ЭКРАН --- */
+        .main-screen {
+            flex-grow: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
-            user-select: none;
+            position: relative;
+            overflow-y: auto;
         }
 
-        .pet-container {
-            font-size: 100px;
-            margin-bottom: 20px;
-            transition: transform 0.2s;
-        }
-
-        .stats {
-            width: 80%;
-            margin-bottom: 30px;
-        }
-
-        .stat-row {
-            margin-bottom: 10px;
-        }
-
-        .label {
-            display: flex;
-            justify-content: space-between;
+        /* --- ПИТОМЕЦ И ДИАЛОГИ --- */
+        .pet-container { position: relative; margin-bottom: 20px; }
+        .pet { font-size: 100px; transition: transform 0.3s; cursor: pointer; }
+        .speech-bubble {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            color: black;
+            padding: 8px 15px;
+            border-radius: 15px;
             font-size: 14px;
-            margin-bottom: 5px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
         }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background-color: #444;
-            border-radius: 5px;
-            overflow: hidden;
+        .speech-bubble::after {
+            content: ''; position: absolute; bottom: -5px; left: 50%;
+            border-width: 5px; border-style: solid;
+            border-color: white transparent transparent transparent;
         }
+        .show-bubble { opacity: 1; top: -70px; }
 
-        .fill {
-            height: 100%;
-            transition: width 0.5s;
-        }
-
-        .buttons {
-            display: flex;
+        /* --- СТАТИСТИКА --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 10px;
+            width: 90%;
+            background: var(--glass);
+            padding: 15px;
+            border-radius: 20px;
         }
-
-        button {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            padding: 15px 20px;
-            border-radius: 12px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: bold;
+        .stat-item { text-align: left; }
+        .stat-label { font-size: 12px; opacity: 0.7; }
+        .progress-bar {
+            height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 3px; margin-top: 5px; overflow: hidden;
         }
+        .fill { height: 100%; transition: width 0.5s; }
 
-        button:active {
-            opacity: 0.8;
-            transform: scale(0.95);
+        /* --- КНОПКИ ДЕЙСТВИЙ --- */
+        .actions-bar {
+            display: flex; gap: 10px; margin-top: 20px;
         }
+        .action-btn {
+            background: var(--glass); border: 1px solid rgba(255,255,255,0.2);
+            color: white; padding: 10px 15px; border-radius: 12px;
+            font-size: 20px; cursor: pointer;
+        }
+        .action-btn:active { transform: scale(0.95); background: var(--accent); }
 
-        /* Анимация прыжка */
-        .bounce { animation: bounce 0.5s; }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-20px); }
+        /* --- НИЖНЕЕ МЕНЮ (ТАБЫ) --- */
+        .bottom-nav {
+            display: flex; justify-content: space-around;
+            background: #1e1e1e; padding: 15px 0;
+            border-top: 1px solid #333;
+        }
+        .nav-item {
+            font-size: 24px; opacity: 0.5; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .nav-item.active { opacity: 1; color: var(--accent); }
+        .nav-text { font-size: 10px; margin-top: 4px; }
+
+        /* --- МОДАЛЬНЫЕ ОКНА (Вкладки) --- */
+        .tab-content {
+            display: none; width: 100%; height: 100%;
+            flex-direction: column; align-items: center; padding-top: 20px;
+        }
+        .tab-content.active { display: flex; }
+
+        /* Стили для Инвентаря и Скиллов */
+        .grid-box {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 90%;
+        }
+        .item-card {
+            background: var(--glass); padding: 10px; border-radius: 10px;
+            text-align: center; font-size: 12px; border: 1px solid #333;
+        }
+        .skill-tree {
+            display: flex; flex-direction: column; gap: 10px; width: 90%;
+        }
+        .skill-node {
+            background: var(--glass); padding: 15px; border-radius: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .locked { filter: grayscale(1); opacity: 0.5; }
+
+        /* Уведомление на весь экран */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 100;
+            display: none; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: #2d3436; padding: 20px; border-radius: 20px;
+            text-align: center; max-width: 80%; border: 1px solid var(--accent);
         }
     </style>
 </head>
 <body>
 
-    <div id="pet" class="pet-container">🐱</div>
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+    <div class="top-bar">
+        <div class="level-box">LVL <span id="lvl">1</span></div>
+        <div id="coins">🪙 100</div>
+    </div>
 
-    <div class="stats">
-        <div class="stat-row">
-            <div class="label"><span>Голод</span> <span id="hunger-val">100%</span></div>
-            <div class="progress-bar"><div id="hunger-bar" class="fill" style="background: #ff5252; width: 100%;"></div></div>
+    <!-- КОНТЕНТ: ГЛАВНАЯ (Home) -->
+    <div id="tab-home" class="main-screen tab-content active">
+        <div class="pet-container">
+            <div id="bubble" class="speech-bubble">Привет!</div>
+            <div id="pet" class="pet" onclick="petClick()">🥚</div>
         </div>
-        <div class="stat-row">
-            <div class="label"><span>Счастье</span> <span id="happy-val">100%</span></div>
-            <div class="progress-bar"><div id="happy-bar" class="fill" style="background: #ffeb3b; width: 100%;"></div></div>
+
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">❤️ Здоровье</div>
+                <div class="progress-bar"><div id="bar-hp" class="fill" style="background:#ff7675; width:100%"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">🍔 Голод</div>
+                <div class="progress-bar"><div id="bar-food" class="fill" style="background:#ffeaa7; width:100%"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">😄 Настроение</div>
+                <div class="progress-bar"><div id="bar-mood" class="fill" style="background:#74b9ff; width:100%"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">⚡ Энергия</div>
+                <div class="progress-bar"><div id="bar-energy" class="fill" style="background:#55efc4; width:100%"></div></div>
+            </div>
         </div>
-        <div class="stat-row">
-            <div class="label"><span>Энергия</span> <span id="energy-val">100%</span></div>
-            <div class="progress-bar"><div id="energy-bar" class="fill" style="background: #69f0ae; width: 100%;"></div></div>
+
+        <div class="actions-bar">
+            <button class="action-btn" onclick="doAction('feed')">🍔</button>
+            <button class="action-btn" onclick="doAction('walk')">🌳</button>
+            <button class="action-btn" onclick="doAction('heal')">💊</button>
+            <button class="action-btn" onclick="doAction('clean')">🧽</button>
         </div>
     </div>
 
-    <div class="buttons">
-        <button onclick="action('feed')">🍔 Поесть</button>
-        <button onclick="action('play')">🎾 Играть</button>
-        <button onclick="action('sleep')">💤 Спать</button>
+    <!-- КОНТЕНТ: НАВЫКИ (Skills) -->
+    <div id="tab-skills" class="main-screen tab-content">
+        <h2>Дерево навыков 🌳</h2>
+        <div class="skill-tree">
+            <div class="skill-node" onclick="unlockSkill('speak')">
+                <div>🗣️ <b>Говорун</b><br><small>Питомец болтает чаще</small></div>
+                <div id="skill-speak">🔒 500🪙</div>
+            </div>
+            <div class="skill-node locked" id="node-hunt">
+                <div>im️ <b>Охотник</b><br><small>Добыча монет на прогулке</small></div>
+                <div>🔒 LVL 5</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- КОНТЕНТ: ИНВЕНТАРЬ (Box) -->
+    <div id="tab-box" class="main-screen tab-content">
+        <h2>Шкатулка 📦</h2>
+        <div class="grid-box">
+            <div class="item-card">💊<br>Аптечка<br><b>x<span id="inv-med">2</span></b></div>
+            <div class="item-card">🧸<br>Мишка<br><b>x<span id="inv-toy">1</span></b></div>
+            <div class="item-card">🎟️<br>Билет<br><b>x0</b></div>
+        </div>
+    </div>
+
+    <!-- КОНТЕНТ: ПАМЯТЬ (Memory) -->
+    <div id="tab-mem" class="main-screen tab-content">
+        <h2>Альбом 📸</h2>
+        <div style="padding: 20px; text-align: center; opacity: 0.6;">
+            Здесь будут фото с прогулок...<br>(Пока пусто)
+        </div>
+    </div>
+
+    <!-- НИЖНЕЕ МЕНЮ -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('home', this)">🏠<span class="nav-text">Дом</span></div>
+        <div class="nav-item" onclick="switchTab('skills', this)">🎓<span class="nav-text">Навыки</span></div>
+        <div class="nav-item" onclick="switchTab('box', this)">🎒<span class="nav-text">Шкатулка</span></div>
+        <div class="nav-item" onclick="switchTab('mem', this)">📸<span class="nav-text">Память</span></div>
+    </div>
+
+    <!-- POPUP MODAL -->
+    <div id="modal" class="modal-overlay" onclick="closeModal()">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <h3 id="modal-title">Событие!</h3>
+            <p id="modal-text">Текст события</p>
+            <button class="action-btn" onclick="closeModal()">OK</button>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Раскрыть на весь экран
+        tg.expand();
 
-        // Начальные статы
-        let stats = {
-            hunger: 100,
-            happy: 100,
-            energy: 100
+        // 1. ИГРОВОЕ СОСТОЯНИЕ (State)
+        let game = {
+            lvl: 1,
+            xp: 0,
+            coins: 100,
+            stats: { hp: 100, food: 80, mood: 80, energy: 80 },
+            inventory: { medkit: 2, toy: 1 },
+            skills: { speak: false },
+            petType: 'baby', // baby, teen, adult
+            lastLogin: Date.now()
         };
 
-        const pet = document.getElementById('pet');
-
-        function updateUI() {
-            document.getElementById('hunger-bar').style.width = stats.hunger + '%';
-            document.getElementById('hunger-val').innerText = Math.round(stats.hunger) + '%';
-            
-            document.getElementById('happy-bar').style.width = stats.happy + '%';
-            document.getElementById('happy-val').innerText = Math.round(stats.happy) + '%';
-            
-            document.getElementById('energy-bar').style.width = stats.energy + '%';
-            document.getElementById('energy-val').innerText = Math.round(stats.energy) + '%';
-
-            // Если статы на нуле - питомец грустит
-            if (stats.hunger <= 0 || stats.happy <= 0 || stats.energy <= 0) {
-                pet.innerText = '💀';
-            } else if (stats.hunger < 30 || stats.happy < 30) {
-                pet.innerText = '😿';
-            } else {
-                pet.innerText = '🐱';
-            }
+        // Загрузка сохранения
+        if (localStorage.getItem('tamaSave')) {
+            game = JSON.parse(localStorage.getItem('tamaSave'));
+            checkDailyReport(); // Проверка "Ежедневного отчета"
         }
 
-        function action(type) {
-            pet.classList.remove('bounce');
-            void pet.offsetWidth; // Триггер рефлоу для перезапуска анимации
-            pet.classList.add('bounce');
+        // 2. ОСНОВНАЯ ЛОГИКА
+        function updateUI() {
+            // Статы
+            document.getElementById('bar-hp').style.width = game.stats.hp + '%';
+            document.getElementById('bar-food').style.width = game.stats.food + '%';
+            document.getElementById('bar-mood').style.width = game.stats.mood + '%';
+            document.getElementById('bar-energy').style.width = game.stats.energy + '%';
             
-            // Вибрация телефона (работает только в Telegram App)
+            // Инфо
+            document.getElementById('lvl').innerText = game.lvl;
+            document.getElementById('coins').innerText = '🪙 ' + game.coins;
+            
+            // Инвентарь
+            document.getElementById('inv-med').innerText = game.inventory.medkit;
+            document.getElementById('inv-toy').innerText = game.inventory.toy;
+
+            // Внешний вид питомца
+            const petEl = document.getElementById('pet');
+            if (game.stats.hp < 30) petEl.innerText = '🤒'; // Болеет
+            else if (game.stats.food < 20) petEl.innerText = '😵'; // Голоден
+            else if (game.lvl >= 5) petEl.innerText = '🦖'; // Взрослый
+            else petEl.innerText = '🐣'; // Малыш
+        }
+
+        function doAction(type) {
             tg.HapticFeedback.impactOccurred('medium');
 
-            if (type === 'feed') {
-                stats.hunger = Math.min(100, stats.hunger + 20);
-                stats.energy = Math.max(0, stats.energy - 5);
-            } else if (type === 'play') {
-                stats.happy = Math.min(100, stats.happy + 20);
-                stats.energy = Math.max(0, stats.energy - 15);
-                stats.hunger = Math.max(0, stats.hunger - 10);
-            } else if (type === 'sleep') {
-                stats.energy = Math.min(100, stats.energy + 30);
-                stats.hunger = Math.max(0, stats.hunger - 10);
+            if (game.stats.hp < 30 && type !== 'heal') {
+                say("Я болею... Дай лекарство 💊");
+                return;
             }
+
+            if (type === 'feed') {
+                if (game.coins < 10) return say("Нет денег на еду! 💸");
+                game.coins -= 10;
+                game.stats.food = Math.min(100, game.stats.food + 30);
+                game.stats.energy = Math.min(100, game.stats.energy + 5);
+                say("Вкусно! 🍗");
+            } 
+            else if (type === 'walk') {
+                if (game.stats.energy < 20) return say("Я устал... 💤");
+                game.stats.energy -= 20;
+                game.stats.mood = Math.min(100, game.stats.mood + 20);
+                game.xp += 10;
+                handleRandomEvent(); // Случайное событие
+            }
+            else if (type === 'heal') {
+                if (game.inventory.medkit > 0) {
+                    game.inventory.medkit--;
+                    game.stats.hp = 100;
+                    say("Спасибо, доктор! 💖");
+                } else {
+                    say("Нет аптечек! Купи в магазине (скоро)");
+                }
+            }
+            else if (type === 'clean') {
+                say("Теперь чисто! ✨");
+                game.stats.mood += 5;
+            }
+
+            checkLevelUp();
+            saveGame();
             updateUI();
         }
 
-        // Игровой цикл: статы падают каждую секунду
-        setInterval(() => {
-            if (stats.hunger > 0) stats.hunger -= 0.5;
-            if (stats.happy > 0) stats.happy -= 1;
-            if (stats.energy > 0) stats.energy -= 0.2;
-            updateUI();
-        }, 1000);
+        // Случайные события на прогулке (Квесты)
+        function handleRandomEvent() {
+            const roll = Math.random();
+            if (roll > 0.7) {
+                const foundCoins = Math.floor(Math.random() * 50) + 10;
+                game.coins += foundCoins;
+                showModal("Находка! 💎", `Ты гулял и нашел ${foundCoins} монет!`);
+            } else if (roll < 0.2) {
+                game.stats.hp -= 10;
+                showModal("Ой! 🌵", "Ты споткнулся и ушиб лапку. Здоровье -10");
+            } else {
+                say("Хорошая прогулка... 🍃");
+            }
+        }
 
-        updateUI();
+        // Система уровней
+        function checkLevelUp() {
+            if (game.xp > game.lvl * 100) {
+                game.lvl++;
+                game.xp = 0;
+                showModal("УРОВЕНЬ ПОВЫШЕН! 🎉", `Теперь твой питомец ${game.lvl} уровня!`);
+                tg.HapticFeedback.notificationOccurred('success');
+            }
+        }
+
+        // Облачко с текстом
+        function say(text) {
+            const bubble = document.getElementById('bubble');
+            bubble.innerText = text;
+            bubble.classList.add('show-bubble');
+            setTimeout(() => bubble.classList.remove('show-bubble'), 3000);
+        }
+
+        function petClick() {
+            say(game.stats.mood > 50 ? "Мур-мур! ❤️" : "Не трогай меня 💢");
+            tg.HapticFeedback.selectionChanged();
+        }
+
+        // Ежедневный отчет (симуляция)
+        function checkDailyReport() {
+            const now = Date.now();
+            const hoursPassed = (now - game.lastLogin) / (1000 * 60 * 60);
+            
+            if (hoursPassed > 12) {
+                game.stats.food = Math.max(0, game.stats.food - 50);
+                game.stats.mood = Math.max(0, game.stats.mood - 30);
+                showModal("Ежедневный отчет 📅", "Пока тебя не было, питомец сильно проголодался и заскучал.");
+            }
+            game.lastLogin = now;
+            saveGame();
+        }
+
+        // --- ТЕХНИЧЕСКИЕ ФУНКЦИИ ---
+        function switchTab(tabId, element) {
+            // Скрыть все табы
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            
+            // Показать нужный
+            document.getElementById('tab-' + tabId).classList.add('active');
+            element.classList.add('active');
+            tg.HapticFeedback.selectionChanged();
+        }
+
+        function saveGame() {
+            localStorage.setItem('tamaSave', JSON.stringify(game));
+        }
+
+        function showModal(title, text) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-text').innerText = text;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // Таймер: статы падают со временем
+        setInterval(() => {
+            if(game.stats.food > 0) game.stats.food -= 1;
+            if(game.stats.energy < 100) game.stats.energy += 0.5; // Энергия восстанавливается сама медленно
+            updateUI();
+            saveGame();
+        }, 5000); // Раз в 5 секунд
+
+        updateUI(); // Первый запуск
     </script>
 </body>
-
 </html>

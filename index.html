@@ -1,58 +1,64 @@
 <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+    // --- БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ ---
+    // Сначала проверяем, существует ли window.Telegram. Если нет, создаем пустышку.
+    const tg = window.Telegram ? window.Telegram.WebApp : {
+        initDataUnsafe: { user: { id: 12345 } }, // Тестовые данные для браузера
+        expand: () => console.log("expand called"),
+        ready: () => console.log("ready called")
+    };
+    tg.ready();
+    tg.expand();
 
-        // 🛑 ВАЖНО: Вставь сюда ссылку из Ngrok!
-        const API_URL = "https://salubriously-ophthalmic-eveline.ngrok-free.dev"; 
-        
-        // Получаем ID юзера из Телеграма
-        const userId = tg.initDataUnsafe?.user?.id; 
+    // 🛑 ВАЖНО: Вставь сюда ссылку из Ngrok!
+    const API_URL = "https://salubriously-ophthalmic-eveline.ngrok-free.dev"; 
+    
+    // Получаем ID юзера. Если открыли в браузере, возьмутся тестовые данные.
+    const myId = tg.initDataUnsafe.user.id;
 
-        // Если открыли просто в браузере без ТГ, ставим тестовый ID
-        const myId = userId ? userId : 12345; 
+    // --- Функция для отображения ошибок прямо на экране ---
+    function showError(title, message) {
+        document.body.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #ff7675; font-family: sans-serif;">
+                <h1>${title}</h1>
+                <p>${message}</p>
+            </div>
+        `;
+    }
 
-        async function loadData() {
-            try {
-                // Запрашиваем данные у Python-сервера
-                let response = await fetch(`${API_URL}/api/get_user/${myId}`);
-                let data = await response.json();
-
-                if (data.error) {
-                    alert("Сначала нажми /start в боте!");
-                    return;
-                }
-
-                // Обновляем полоски (пример)
-                document.getElementById('bar-food').style.width = data.food + '%';
-                document.getElementById('coins').innerText = '🪙 ' + data.coins;
-                // ... тут нужно обновить остальные статы как раньше ...
-                
-            } catch (e) {
-                console.log(e);
-                alert("Ошибка соединения с сервером! Запусти Python.");
-            }
-        }
-
-        async function doAction(actionName) {
-            // Отправляем действие на сервер
-            let response = await fetch(`${API_URL}/api/action`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ user_id: myId, action: actionName })
+    // --- ОСНОВНОЙ КОД, КОТОРЫЙ ТЕПЕРЬ ЗАПУСТИТСЯ ---
+    async function loadData() {
+        try {
+            let response = await fetch(`${API_URL}/api/get_user/${myId}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
             });
-            
-            let result = await response.json();
-            
-            // Показываем сообщение от сервера
-            if (result.message) {
-                // Тут можно использовать функцию showModal или просто alert
-                alert(result.message); 
+
+            if (!response.ok) {
+                throw new Error(`Сервер ответил с ошибкой: ${response.status}`);
+            }
+
+            let data = await response.json();
+
+            if (data.error) {
+                showError("Ошибка данных!", "Сначала напиши /start в боте, чтобы он создал твоего питомца.");
+                return;
             }
             
-            // Перезагружаем данные, чтобы увидеть новые цифры
-            loadData();
-        }
+            // Если все хорошо, нужно вернуть HTML-код игры.
+            // Пока что просто выведем сообщение об успехе.
+            document.body.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #00cec9; font-family: sans-serif;">
+                    <h1>✅ Связь с сервером УСТАНОВЛЕНА!</h1>
+                    <p>Данные получены: ${JSON.stringify(data)}</p>
+                    <p>Теперь нужно вернуть в этот файл HTML-код интерфейса игры.</p>
+                </div>
+            `;
 
-        // Загружаем данные при старте
-        loadData();
-    </script>
+        } catch (e) {
+            console.error(e);
+            showError("Не могу подключиться к серверу!", `Проверь, что Python и Ngrok запущены. Детали ошибки: ${e.message}`);
+        }
+    }
+
+    // Загружаем данные при старте
+    loadData();
+</script>
